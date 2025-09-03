@@ -2,7 +2,7 @@
 from __future__ import annotations
 import json, uuid, datetime as dt, pathlib
 from openai import OpenAI
-from app.core.config import settings
+from ..core.config import settings
 
 PROMPT_PATH = pathlib.Path(__file__).resolve().parents[1] / "prompts" / "triple_extract.system.txt"
 client = OpenAI(api_key=settings.OPENAI_API_KEY)
