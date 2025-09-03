@@ -1,6 +1,6 @@
 # backend/app/services/qa_orchestrator.py
 from openai import OpenAI
-from app.core.config import settings
+from ..core.config import settings
 from app.services.nl2cypher import nl_to_cypher
 from app.services.neo4j_client import run_cypher
 
