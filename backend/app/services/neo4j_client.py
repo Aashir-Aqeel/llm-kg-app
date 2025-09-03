@@ -4,7 +4,7 @@ import time
 from neo4j import GraphDatabase
 from neo4j.exceptions import ServiceUnavailable, SessionError
 from neo4j.graph import Node, Relationship, Path
-from app.core.config import settings
+from ..core.config import settings
 
 # Build a driver with short-lived connections to avoid stale sockets.
 _DRIVER = None
