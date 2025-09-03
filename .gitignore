@@ -1,0 +1,37 @@
+# python
+**/.venv/
+**/__pycache__/
+**/.pytest_cache/
+*.pyc
+*.pyo
+*.pyd
+.coverage
+htmlcov/
+
+# node / next
+frontend/node_modules/
+frontend/.next/
+frontend/.turbo/
+npm-debug.log*
+yarn-error.log*
+
+# env & secrets
+.env
+backend/.env
+**/.env
+**/.env.*
+!.env.example
+!frontend/.env.local.example
+!backend/.env.example
+
+# os/editor junk
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# build/containers
+dist/
+build/
+*.log
+infra/*.pem
