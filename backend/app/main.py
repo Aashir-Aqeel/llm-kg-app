@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.responses import RedirectResponse
 
-from app.routers import chat, graph, kg
+from .routers import chat, graph, kg
 from app.routers.graph_view import router as graph_view_router  # <-- explicit import
 
 app = FastAPI(title="LLM builds a Personal Knowledge Graph")
