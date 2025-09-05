@@ -1,0 +1,3 @@
+[tool.pydocstyle]
+convention = "google"
+add-ignore = ["D105","D107"]  # example: ignore missing docstring in magic methods
