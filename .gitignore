@@ -1,37 +1,27 @@
-# python
-**/.venv/
-**/__pycache__/
-**/.pytest_cache/
+# Python
+__pycache__/
 *.pyc
 *.pyo
 *.pyd
-.coverage
-htmlcov/
+*.egg-info/
+.venv/
+backend/.venv/
 
-# node / next
-frontend/node_modules/
+# Node/Next
+node_modules/
 frontend/.next/
 frontend/.turbo/
-npm-debug.log*
-yarn-error.log*
+*.log
 
-# env & secrets
+# Env & local configs
 .env
+*.env
 backend/.env
-**/.env
-**/.env.*
-!.env.example
-!frontend/.env.local.example
-!backend/.env.example
+frontend/.env.local
+.env.*.local
 
-# os/editor junk
+# OS/IDE
 .DS_Store
 Thumbs.db
 .vscode/
 .idea/
-
-# build/containers
-dist/
-build/
-*.log
-infra/*.pem

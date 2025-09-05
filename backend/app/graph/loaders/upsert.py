@@ -1,83 +1,73 @@
-# backend/app/graph/loaders/upsert.py
+"""
+Helpers that write validated data into Neo4j.
+
+We keep these functions small and side-effect free (besides the DB call),
+so it's easy to test and reason about the Cypher used.
+"""
+from __future__ import annotations
+
+from typing import Iterable, List
+
+from app.models.graph import Entity, Triple
 from app.services.neo4j_client import run_cypher
 
-ALLOWED_LABELS = ["Person","Org","Place","Event","Goal","Thing"]
-ALLOWED_RELS = [
-    "FRIEND_OF","LIVES_IN","WORKS_AT","VISITED","MET_WITH",
-    "WILL_START_AT","PREFERS","DISLIKES","HAS_GOAL","HAS_SKILL",
-    "BOUGHT","ATTENDED","OCCURRED_AT"
-]
 
-def upsert_entities(entities: list[dict]):
-    q = """
-    UNWIND $ents AS e
-    WITH e WHERE e.label IN $labels
-    FOREACH (_ IN CASE WHEN e.label='Person' THEN [1] ELSE [] END |
-      MERGE (n:Person {id:e.id}) SET n.name = coalesce(e.name, n.name), n += coalesce(e.props,{})
-    )
-    FOREACH (_ IN CASE WHEN e.label='Org' THEN [1] ELSE [] END |
-      MERGE (n:Org {id:e.id}) SET n.name = coalesce(e.name, n.name), n += coalesce(e.props,{})
-    )
-    FOREACH (_ IN CASE WHEN e.label='Place' THEN [1] ELSE [] END |
-      MERGE (n:Place {id:e.id}) SET n.name = coalesce(e.name, n.name), n += coalesce(e.props,{})
-    )
-    FOREACH (_ IN CASE WHEN e.label='Event' THEN [1] ELSE [] END |
-      MERGE (n:Event {id:e.id}) SET n.name = coalesce(e.name, n.name), n += coalesce(e.props,{})
-    )
-    FOREACH (_ IN CASE WHEN e.label='Goal' THEN [1] ELSE [] END |
-      MERGE (n:Goal {id:e.id}) SET n.name = coalesce(e.name, n.name), n += coalesce(e.props,{})
-    )
-    FOREACH (_ IN CASE WHEN e.label='Thing' THEN [1] ELSE [] END |
-      MERGE (n:Thing {id:e.id}) SET n.name = coalesce(e.name, n.name), n += coalesce(e.props,{})
-    )
+def upsert_entities(entities: Iterable[Entity]) -> None:
     """
-    run_cypher(q, {"ents": entities, "labels": ALLOWED_LABELS})
+    Create or update nodes by id.
 
-def upsert_triples(triples: list[dict]):
-    q = """
+    Cypher notes:
+      - MERGE on {id} ensures we never duplicate nodes.
+      - We set/merge the 'name' and any extra props from 'props'.
+    """
+    ents: List[dict] = [
+        {"id": e.id, "label": e.label.value, "name": e.name, "props": e.props}
+        for e in entities
+    ]
+
+    if not ents:
+        return
+
+    query = """
+    UNWIND $ents AS e
+    CALL {
+      WITH e
+      CALL apoc.merge.node([e.label], {id:e.id}, {}, {}) YIELD node
+      WITH node, e
+      SET node += e.props
+      SET node.name = coalesce(e.name, node.name)
+      RETURN count(*) AS _
+    }
+    RETURN 1 AS ok
+    """
+    run_cypher(query, {"ents": ents})
+
+
+def upsert_triples(triples: Iterable[Triple]) -> None:
+    """
+    Create or update relationships between existing/just-created nodes.
+
+    For each triple, we MERGE the relationship and attach edge properties.
+    """
+    rels: List[dict] = [
+        {
+            "subj": t.subj,
+            "pred": t.pred.value,
+            "obj": t.obj,
+            "props": t.props,
+        }
+        for t in triples
+    ]
+
+    if not rels:
+        return
+
+    query = """
     UNWIND $rels AS r
-    WITH r WHERE r.rel IN $allowed
     MATCH (s {id:r.subj})
     MATCH (o {id:r.obj})
-
-    FOREACH (_ IN CASE WHEN r.rel='WORKS_AT' THEN [1] ELSE [] END |
-      MERGE (s)-[x:WORKS_AT]->(o) SET x += coalesce(r.props,{})
-    )
-    FOREACH (_ IN CASE WHEN r.rel='LIVES_IN' THEN [1] ELSE [] END |
-      MERGE (s)-[x:LIVES_IN]->(o) SET x += coalesce(r.props,{})
-    )
-    FOREACH (_ IN CASE WHEN r.rel='FRIEND_OF' THEN [1] ELSE [] END |
-      MERGE (s)-[x:FRIEND_OF]->(o) SET x += coalesce(r.props,{})
-    )
-    FOREACH (_ IN CASE WHEN r.rel='VISITED' THEN [1] ELSE [] END |
-      MERGE (s)-[x:VISITED]->(o) SET x += coalesce(r.props,{})
-    )
-    FOREACH (_ IN CASE WHEN r.rel='MET_WITH' THEN [1] ELSE [] END |
-      MERGE (s)-[x:MET_WITH]->(o) SET x += coalesce(r.props,{})
-    )
-    FOREACH (_ IN CASE WHEN r.rel='WILL_START_AT' THEN [1] ELSE [] END |
-      MERGE (s)-[x:WILL_START_AT]->(o) SET x += coalesce(r.props,{})
-    )
-    FOREACH (_ IN CASE WHEN r.rel='PREFERS' THEN [1] ELSE [] END |
-      MERGE (s)-[x:PREFERS]->(o) SET x += coalesce(r.props,{})
-    )
-    FOREACH (_ IN CASE WHEN r.rel='DISLIKES' THEN [1] ELSE [] END |
-      MERGE (s)-[x:DISLIKES]->(o) SET x += coalesce(r.props,{})
-    )
-    FOREACH (_ IN CASE WHEN r.rel='HAS_GOAL' THEN [1] ELSE [] END |
-      MERGE (s)-[x:HAS_GOAL]->(o) SET x += coalesce(r.props,{})
-    )
-    FOREACH (_ IN CASE WHEN r.rel='HAS_SKILL' THEN [1] ELSE [] END |
-      MERGE (s)-[x:HAS_SKILL]->(o) SET x += coalesce(r.props,{})
-    )
-    FOREACH (_ IN CASE WHEN r.rel='BOUGHT' THEN [1] ELSE [] END |
-      MERGE (s)-[x:BOUGHT]->(o) SET x += coalesce(r.props,{})
-    )
-    FOREACH (_ IN CASE WHEN r.rel='ATTENDED' THEN [1] ELSE [] END |
-      MERGE (s)-[x:ATTENDED]->(o) SET x += coalesce(r.props,{})
-    )
-    FOREACH (_ IN CASE WHEN r.rel='OCCURRED_AT' THEN [1] ELSE [] END |
-      MERGE (s)-[x:OCCURRED_AT]->(o) SET x += coalesce(r.props,{})
-    )
+    CALL apoc.merge.relationship(s, r.pred, {}, r.props, o) YIELD rel
+    SET rel += r.props
+    RETURN 1 AS ok
     """
-    run_cypher(q, {"rels": triples, "allowed": ALLOWED_RELS})
+    run_cypher(query, {"rels": rels})

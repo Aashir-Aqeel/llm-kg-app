@@ -1,20 +1,26 @@
+# app/main.py
 from fastapi import FastAPI
-from fastapi.responses import RedirectResponse
-
 from .routers import chat, graph, kg
-from app.routers.graph_view import router as graph_view_router  # <-- explicit import
+from app.services.neo4j_client import init_driver, close_driver
+from starlette.responses import RedirectResponse
 
-app = FastAPI(title="LLM builds a Personal Knowledge Graph")
+app = FastAPI(title="LLM-KG API")
 
+# ensure Neo4j is ready
+@app.on_event("startup")
+def _on_startup():
+    init_driver()
+
+@app.on_event("shutdown")
+def _on_shutdown():
+    close_driver()
+
+# include routers
 app.include_router(graph.router)
-app.include_router(chat.router)
 app.include_router(kg.router)
-app.include_router(graph_view_router)  # <-- include the router object
+app.include_router(chat.router)
 
+# handy root redirect
 @app.get("/", include_in_schema=False)
 def root():
-    return RedirectResponse(url="/docs")
-
-@app.get("/health")
-def health():
-    return {"ok": True}
+    return RedirectResponse("/docs")
